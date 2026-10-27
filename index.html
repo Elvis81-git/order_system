@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>餐飲實習點餐 POS 系統</title>
+  <!-- 引入 Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-dvh flex flex-col justify-between selection:bg-teal-500 selection:text-white">
+
+  <!-- 頂部裝飾條 -->
+  <div class="h-2 bg-gradient-to-r from-teal-500 via-amber-500 to-indigo-600 w-full"></div>
+
+  <!-- 主要內容區（垂直置中，適配手機直式與平板電腦） -->
+  <main class="flex-1 flex flex-col items-center justify-center px-5 py-8 sm:py-10 max-w-5xl mx-auto w-full">
+    
+    <!-- 系統標題區 -->
+    <header class="text-center mb-8 sm:mb-10">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-200/80 text-slate-700 text-xs font-bold tracking-wider mb-3">
+        <span>🍽️ 餐飲科實習教學專用</span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-slate-900 mb-3">
+        餐飲實習點餐 POS 系統
+      </h1>
+      <p class="text-slate-500 text-sm sm:text-base max-w-lg mx-auto">
+        請選擇自由實習點餐門市，或進入「實習生隨堂考」挑戰顧客隨機客製化點餐測驗！
+      </p>
+    </header>
+
+    <!-- 門市與考試模式大卡片網格（手機直式單欄、電腦三欄） -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6 w-full">
+      
+      <!-- 卡片 1：實習飲料店 -->
+      <a href="drinks.html" 
+         class="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-teal-500 to-cyan-600 p-6 sm:p-7 text-white shadow-lg shadow-teal-500/20 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-teal-500/30 active:scale-[0.98] flex flex-col justify-between min-h-[210px]">
+        <!-- 背景裝飾圓圈 -->
+        <div class="-right-10 -bottom-10 w-44 h-44 bg-white/10 rounded-full blur-xl pointer-events-none transition-transform duration-500 group-hover:scale-125 absolute"></div>
+        
+        <div class="relative z-10 flex items-start justify-between">
+          <div class="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-4xl shadow-inner">
+            🥤
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur-sm">
+            自由練習模式
+          </span>
+        </div>
+
+        <div class="relative z-10 mt-6">
+          <h2 class="text-2xl font-extrabold tracking-wide flex items-center justify-between">
+            <span>實習飲料店</span>
+            <span class="text-xl transition-transform duration-300 group-hover:translate-x-1.5">→</span>
+          </h2>
+          <p class="text-teal-50 text-xs sm:text-sm mt-1.5 opacity-90">
+            手搖飲品點餐、甜度冰塊與配料加價結帳練習
+          </p>
+        </div>
+      </a>
+
+      <!-- 卡片 2：實習中餐店 -->
+      <a href="food.html" 
+         class="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 to-orange-600 p-6 sm:p-7 text-white shadow-lg shadow-orange-500/20 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-orange-500/30 active:scale-[0.98] flex flex-col justify-between min-h-[210px]">
+        <!-- 背景裝飾圓圈 -->
+        <div class="-right-10 -bottom-10 w-44 h-44 bg-white/10 rounded-full blur-xl pointer-events-none transition-transform duration-500 group-hover:scale-125 absolute"></div>
+        
+        <div class="relative z-10 flex items-start justify-between">
+          <div class="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-4xl shadow-inner">
+            🍱
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur-sm">
+            自由練習模式
+          </span>
+        </div>
+
+        <div class="relative z-10 mt-6">
+          <h2 class="text-2xl font-extrabold tracking-wide flex items-center justify-between">
+            <span>實習中餐店</span>
+            <span class="text-xl transition-transform duration-300 group-hover:translate-x-1.5">→</span>
+          </h2>
+          <p class="text-amber-50 text-xs sm:text-sm mt-1.5 opacity-90">
+            中式便當麵食點餐、辣度加菜與忌口備註練習
+          </p>
+        </div>
+      </a>
+
+      <!-- 卡片 3：實習生考試模式（新增！） -->
+      <a href="exam.html" 
+         class="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-purple-600 to-fuchsia-600 p-6 sm:p-7 text-white shadow-lg shadow-indigo-500/25 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-indigo-500/35 active:scale-[0.98] flex flex-col justify-between min-h-[210px] ring-2 ring-indigo-400/30">
+        <!-- 背景裝飾圓圈 -->
+        <div class="-right-10 -bottom-10 w-44 h-44 bg-white/10 rounded-full blur-xl pointer-events-none transition-transform duration-500 group-hover:scale-125 absolute"></div>
+        
+        <div class="relative z-10 flex items-start justify-between">
+          <div class="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-4xl shadow-inner">
+            📝
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-bold bg-amber-300 text-slate-900 shadow-sm">
+            🔥 隨堂測驗評分
+          </span>
+        </div>
+
+        <div class="relative z-10 mt-6">
+          <h2 class="text-2xl font-extrabold tracking-wide flex items-center justify-between">
+            <span>實習考試模式</span>
+            <span class="text-xl transition-transform duration-300 group-hover:translate-x-1.5">→</span>
+          </h2>
+          <p class="text-indigo-100 text-xs sm:text-sm mt-1.5 opacity-95">
+            隨機出 1~5 道顧客考題（含對照與記憶挑戰），送單即時批改與毒舌評語！
+          </p>
+        </div>
+      </a>
+
+    </div>
+  </main>
+
+  <!-- 頁尾系統說明與版本標記 -->
+  <footer class="py-5 px-4 text-center border-t border-slate-200/80 bg-white/60 backdrop-blur-sm">
+    <p class="text-xs sm:text-sm text-slate-500 font-medium">
+      餐飲科實習教學點餐 POS 系統 <span class="mx-1.5 text-slate-300">|</span> 版本 <span class="font-mono text-slate-600 font-semibold">v2.0.0 (含隨堂考評分系統)</span>
+    </p>
+    <p class="text-[11px] text-slate-400 mt-1">
+      支援行動裝置觸控與響應式排版（HTML5 + Tailwind CSS + Vanilla JS）
+    </p>
+  </footer>
+
+</body>
+</html>

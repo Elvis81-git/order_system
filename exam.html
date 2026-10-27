@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>實習考試模式 - 餐飲點餐 POS 系統</title>
+  <!-- 引入 Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: none;
+    }
+    .safe-bottom {
+      padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    }
+  </style>
+</head>
+<body class="bg-indigo-50/40 text-slate-800 min-h-dvh flex flex-col">
+
+  <!-- ==================== 頂部導覽列 (Header) ==================== -->
+  <header id="app-header" class="sticky top-0 z-30 bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600 text-white shadow-md transition-colors duration-300">
+    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
+      
+      <!-- 左側：返回首頁按鈕 -->
+      <a href="index.html" 
+         class="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 transition text-sm font-bold whitespace-nowrap">
+        <span>← 回首頁</span>
+      </a>
+
+      <!-- 中央：考場名稱 -->
+      <h1 class="text-base sm:text-xl font-black tracking-wide truncate flex items-center gap-1.5">
+        <span>📝</span>
+        <span id="exam-header-title">實習生隨堂考</span>
+      </h1>
+
+      <!-- 右側：重新設定/換一題 與 清空按鈕 -->
+      <div class="flex items-center gap-1.5">
+        <button type="button"
+                onclick="openExamSetupModal()"
+                class="inline-flex items-center gap-1 px-2.5 sm:px-3 py-2 rounded-xl bg-amber-300 text-slate-900 hover:bg-amber-200 active:scale-95 transition text-xs sm:text-sm font-extrabold whitespace-nowrap shadow-sm">
+          <span>🎲 換題/設定</span>
+        </button>
+        <button id="reset-btn" 
+                type="button"
+                onclick="clearCartWithConfirm()"
+                disabled
+                class="inline-flex items-center gap-1 px-2.5 sm:px-3 py-2 rounded-xl bg-white/15 hover:bg-rose-500/90 active:scale-95 transition text-xs sm:text-sm font-bold whitespace-nowrap disabled:opacity-40 disabled:pointer-events-none">
+          <span>🗑️ 清空</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ==================== 置頂顧客考題單 (Exam Question Banner) ==================== -->
+  <section id="exam-banner-wrapper" class="sticky top-16 z-20 max-w-6xl w-full mx-auto px-3 sm:px-4 pt-3">
+    <div class="bg-white rounded-2xl shadow-lg border-2 border-indigo-500/80 overflow-hidden">
+      
+      <!-- 考題頂部狀態列（永遠顯示，可點擊收合/展開） -->
+      <div class="bg-indigo-50/90 px-4 py-2.5 flex items-center justify-between gap-2 border-b border-indigo-100">
+        <div class="flex items-center gap-2 min-w-0">
+          <span id="customer-avatar" class="text-2xl select-none">👵</span>
+          <div class="truncate">
+            <div class="flex items-center gap-1.5">
+              <span id="customer-name" class="font-black text-sm sm:text-base text-indigo-950 truncate">載入考題中...</span>
+              <span id="exam-mode-badge" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-600 text-white whitespace-nowrap">
+                對照模式
+              </span>
+            </div>
+            <p id="customer-mood" class="text-xs text-slate-500 truncate">請依照客人需求點選正確餐點與客製化選項</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+          <!-- 記憶模式倒數或偷看計數 -->
+          <span id="memory-timer-badge" class="hidden px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 font-black text-xs animate-pulse">
+            ⏱️ 記憶倒數 15s
+          </span>
+          <!-- 展開/收合按鈕 -->
+          <button id="toggle-question-btn"
+                  type="button"
+                  onclick="toggleQuestionSheet()"
+                  class="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 transition">
+            收合考題 ▲
+          </button>
+        </div>
+      </div>
+
+      <!-- 考題詳細內容區（對照模式展開、記憶模式時間到自動隱藏） -->
+      <div id="question-content-area" class="p-4 bg-gradient-to-b from-white to-indigo-50/30">
+        <!-- 客人口語對話氣泡 -->
+        <div class="bg-amber-50/90 border border-amber-200/80 rounded-xl p-3 mb-3 text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
+          <span class="font-black text-amber-800">💬 客人說：</span>
+          <span id="customer-dialogue">「...」</span>
+        </div>
+
+        <!-- 需求結構化清單（1~5 項） -->
+        <div class="text-xs font-bold text-slate-400 mb-1.5 flex items-center justify-between">
+          <span>📋 點餐需求清單（共 <span id="target-item-count">0</span> 項要求）：</span>
+          <span class="text-indigo-600">完成點餐後請按下方「交卷對答案」</span>
+        </div>
+        <ul id="target-order-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <!-- 由 JS 動態產生題目要求卡片 -->
+        </ul>
+      </div>
+
+      <!-- 記憶模式隱藏時的遮罩提示 -->
+      <div id="memory-hidden-overlay" class="hidden px-4 py-3 bg-slate-900 text-white items-center justify-between gap-3">
+        <div class="flex items-center gap-2 text-xs sm:text-sm">
+          <span>🧠 <strong>記憶挑戰進行中！</strong>題目已隱藏，請憑記憶完成點餐。</span>
+        </div>
+        <button type="button"
+                onclick="peekQuestionInMemoryMode()"
+                class="px-3 py-1.5 rounded-lg bg-amber-400 text-slate-900 font-black text-xs hover:bg-amber-300 active:scale-95 transition whitespace-nowrap">
+          👀 偷看考題 (-5分)
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== 主內容區：菜單網格 ==================== -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 pt-4 pb-32">
+    
+    <!-- 當前考場門市提示 -->
+    <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+      <p id="store-hint-pill" class="text-xs sm:text-sm font-bold text-indigo-800 bg-indigo-100/80 px-3 py-1 rounded-full">
+        ✨ 請點擊「+」為客人選擇正確的品項與客製化規格
+      </p>
+      <span id="menu-count-badge" class="text-xs text-slate-500 font-medium"></span>
+    </div>
+
+    <!-- 動態渲染的菜單網格容器（手機 2 欄，平板 3 欄，電腦 4 欄） -->
+    <section id="menu-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5">
+      <!-- 由 JavaScript 動態產生卡片 -->
+    </section>
+
+  </main>
+
+  <!-- ==================== 底部固定浮動列 (Sticky Bottom Bar) ==================== -->
+  <div class="fixed bottom-0 inset-x-0 z-30 bg-white/90 backdrop-blur-md border-t border-indigo-100 shadow-[0_-8px_25px_-5px_rgba(0,0,0,0.08)] safe-bottom pt-3 px-4">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+      
+      <!-- 左側：目前已點數量與金額 -->
+      <div class="flex items-center gap-3">
+        <div class="relative flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 font-black text-xl border border-indigo-200/60">
+          🧾
+          <span id="total-qty-badge" 
+                class="absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center shadow-sm">
+            0
+          </span>
+        </div>
+        <div>
+          <div class="text-xs text-slate-500 font-medium">
+            你已點選 <span id="total-qty-text" class="font-bold text-indigo-700">0</span> 份
+          </div>
+          <div class="text-lg sm:text-xl font-black text-slate-900 leading-tight">
+            NT$ <span id="total-price-text">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右側：檢查明細 / 交卷評分按鈕 -->
+      <div class="flex items-center gap-2">
+        <button id="checkout-btn"
+                type="button"
+                onclick="openCheckoutModal()"
+                disabled
+                class="px-4 sm:px-6 h-12 rounded-2xl font-bold text-sm sm:text-base text-white bg-gradient-to-r from-indigo-600 to-fuchsia-600 shadow-md shadow-indigo-500/25 hover:from-indigo-700 hover:to-fuchsia-700 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none whitespace-nowrap">
+          📝 檢查明細 / 交卷評分
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== 1. 考場設定彈窗 (Exam Setup Modal) ==================== -->
+  <div id="exam-setup-modal" 
+       class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4">
+    <div class="relative z-10 w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
+      
+      <div class="px-6 py-5 bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600 text-white">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-black tracking-wide flex items-center gap-2">
+            <span>🎓</span>
+            <span>實習生隨堂考設定</span>
+          </h2>
+          <button type="button"
+                  onclick="closeExamSetupModal()"
+                  class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center font-bold text-sm">
+            ✕
+          </button>
+        </div>
+        <p class="text-xs text-indigo-100 mt-1">請選擇測驗門市與題目顯示模式，系統將隨機抽出 1~5 項客製化需求！</p>
+      </div>
+
+      <div class="p-6 space-y-5">
+        <!-- 選擇測驗門市 -->
+        <div>
+          <label class="block text-sm font-extrabold text-slate-800 mb-2">1. 選擇測驗門市題庫</label>
+          <div class="grid grid-cols-3 gap-2.5">
+            <button type="button"
+                    id="setup-store-drinks"
+                    onclick="selectSetupStore('drinks')"
+                    class="p-3 rounded-2xl border-2 text-center transition flex flex-col items-center gap-1">
+              <span class="text-2xl">🥤</span>
+              <span class="text-xs font-extrabold">飲料店</span>
+              <span class="text-[10px] text-slate-400">甜度/冰塊/加料</span>
+            </button>
+            <button type="button"
+                    id="setup-store-food"
+                    onclick="selectSetupStore('food')"
+                    class="p-3 rounded-2xl border-2 text-center transition flex flex-col items-center gap-1">
+              <span class="text-2xl">🍱</span>
+              <span class="text-xs font-extrabold">中餐店</span>
+              <span class="text-[10px] text-slate-400">辣度/加量/忌口</span>
+            </button>
+            <button type="button"
+                    id="setup-store-random"
+                    onclick="selectSetupStore('random')"
+                    class="p-3 rounded-2xl border-2 text-center transition flex flex-col items-center gap-1">
+              <span class="text-2xl">🎲</span>
+              <span class="text-xs font-extrabold">隨機抽考</span>
+              <span class="text-[10px] text-slate-400">由系統決定</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 選擇考試模式（對照模式 vs 記憶力挑戰模式） -->
+        <div>
+          <label class="block text-sm font-extrabold text-slate-800 mb-2">2. 選擇題目顯示方式</label>
+          <div class="space-y-2.5">
+            <button type="button"
+                    id="setup-mode-normal"
+                    onclick="selectSetupMode('normal')"
+                    class="w-full p-3.5 rounded-2xl border-2 text-left transition flex items-start gap-3">
+              <span class="text-2xl mt-0.5">📋</span>
+              <div>
+                <div class="text-sm font-extrabold">置頂對照模式（推薦初學練習）</div>
+                <div class="text-xs text-slate-500 mt-0.5">客人點餐需求固定在畫面頂部，可隨時展開/收合核對，訓練點餐正確率。</div>
+              </div>
+            </button>
+
+            <button type="button"
+                    id="setup-mode-memory"
+                    onclick="selectSetupMode('memory')"
+                    class="w-full p-3.5 rounded-2xl border-2 text-left transition flex items-start gap-3">
+              <span class="text-2xl mt-0.5">🧠</span>
+              <div>
+                <div class="text-sm font-extrabold">記憶力挑戰模式（進階聽單特訓）</div>
+                <div class="text-xs text-slate-500 mt-0.5">開考後顯示題目 15 秒即自動收起！憑短期記憶點餐，中途偷看考題每次扣 5 分。</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <button type="button"
+                onclick="startNewExam()"
+                class="w-full h-12 rounded-2xl font-black text-white bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-700 hover:to-fuchsia-700 shadow-lg shadow-indigo-500/25 active:scale-95 transition text-base">
+          🚀 開始出題測驗！
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== 2. 客製化選擇彈窗 (Customization Modal) ==================== -->
+  <div id="custom-modal" 
+       class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
+    <div class="absolute inset-0" onclick="closeCustomModal()"></div>
+
+    <div class="relative z-10 w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88dvh]">
+      <div id="custom-modal-header" class="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold text-indigo-100 block">考場客製化設定</span>
+          <h2 id="custom-modal-title" class="text-lg sm:text-xl font-extrabold tracking-wide">餐點名稱</h2>
+        </div>
+        <button type="button" 
+                onclick="closeCustomModal()"
+                class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 active:scale-90 flex items-center justify-center font-bold text-lg transition">
+          ✕
+        </button>
+      </div>
+
+      <!-- 動態根據飲料店或中餐店渲染對應客製化區塊 -->
+      <div id="custom-modal-body" class="p-5 overflow-y-auto flex-1 space-y-5">
+        <!-- 由 JS 動態填入 -->
+      </div>
+
+      <!-- 下方：即時小計與確認加入按鈕 -->
+      <div class="p-5 bg-slate-50 border-t border-slate-200/80 safe-bottom">
+        <div class="flex items-center justify-between mb-3 text-xs text-slate-500">
+          <span>已選規格：<strong id="custom-summary-preview" class="text-indigo-700">預設</strong></span>
+          <span>單價 <strong id="custom-unit-price" class="text-slate-800">NT$ 0</strong></span>
+        </div>
+        <button type="button"
+                onclick="confirmAddCustomToCart()"
+                class="w-full h-12 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-md active:scale-[0.99] transition flex items-center justify-center gap-2 text-base">
+          <span>確認加入點餐單</span>
+          <span>（NT$ <span id="custom-total-price">0</span>）</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 3. 結帳明細與交卷確認彈窗 (Checkout Modal) ==================== -->
+  <div id="checkout-modal" 
+       class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
+    <div class="absolute inset-0" onclick="closeCheckoutModal()"></div>
+
+    <div class="relative z-10 w-full max-w-xl bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85dvh]">
+      <div class="px-6 py-4 bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🧾</span>
+          <h2 class="text-lg font-extrabold tracking-wide">交卷前確認明細</h2>
+        </div>
+        <button type="button" 
+                onclick="closeCheckoutModal()"
+                class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 active:scale-90 flex items-center justify-center font-bold text-lg transition">
+          ✕
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto flex-1">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 text-xs font-bold text-slate-400 uppercase">
+              <th class="pb-2.5">你點選的品名與客製規格</th>
+              <th class="pb-2.5 text-right whitespace-nowrap">單價</th>
+              <th class="pb-2.5 text-center whitespace-nowrap">數量</th>
+              <th class="pb-2.5 text-right whitespace-nowrap">小計</th>
+            </tr>
+          </thead>
+          <tbody id="modal-order-list" class="divide-y divide-slate-100 text-sm"></tbody>
+        </table>
+      </div>
+
+      <div class="p-5 bg-slate-50 border-t border-slate-200/80 safe-bottom">
+        <div class="flex items-baseline justify-between mb-4">
+          <span class="text-sm font-bold text-slate-500">已點總數：<span id="modal-total-qty" class="text-slate-800">0</span> 份</span>
+          <div class="text-xl sm:text-2xl font-black text-indigo-700">
+            總計金額：NT$ <span id="modal-total-price">0</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <button type="button"
+                  onclick="closeCheckoutModal()"
+                  class="h-12 rounded-xl font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 active:scale-95 transition">
+            返回修改
+          </button>
+          <button type="button"
+                  onclick="gradeExamSubmission()"
+                  class="h-12 rounded-xl font-black text-white bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-700 hover:to-fuchsia-700 shadow-md shadow-indigo-500/20 active:scale-95 transition">
+            ✅ 正式交卷看評分！
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 4. 測驗批改結果與毒舌/誇獎評語彈窗 (Result Modal) ==================== -->
+  <div id="result-modal" 
+       class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/75 backdrop-blur-sm p-4">
+    <div class="relative z-10 w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
+      
+      <!-- 頂部成績橫幅 -->
+      <div id="result-header-banner" class="px-6 py-6 text-white text-center relative">
+        <div id="result-badge-emoji" class="text-5xl mb-2">🏆</div>
+        <div class="text-xs font-bold uppercase tracking-widest opacity-85">實習生隨堂測驗成績單</div>
+        <div class="text-4xl sm:text-5xl font-black my-1">
+          <span id="result-score-num">100</span> <span class="text-xl font-bold">分</span>
+        </div>
+        <p id="result-rank-title" class="text-sm font-extrabold opacity-95 mt-1">金牌王牌收銀員</p>
+      </div>
+
+      <!-- 中間：客人毒舌/誇獎評語 + 逐題批改比對 -->
+      <div class="p-5 overflow-y-auto flex-1 space-y-4">
+        
+        <!-- 客人真實反應評語框 -->
+        <div class="rounded-2xl p-4 bg-amber-50 border-2 border-amber-300/80 shadow-sm">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span id="result-customer-avatar" class="text-2xl">👵</span>
+            <span id="result-customer-name" class="font-black text-sm text-amber-950">客人的真實評價：</span>
+          </div>
+          <p id="result-main-comment" class="text-sm sm:text-base font-extrabold text-slate-900 leading-relaxed">
+            「完美，你/妳可以準備上班了！」
+          </p>
+        </div>
+
+        <!-- 詳細批改紀錄 -->
+        <div>
+          <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-2">📊 逐項核對批改結果</h3>
+          <div id="result-breakdown-list" class="space-y-2 text-xs sm:text-sm">
+            <!-- 由 JS 動態產生每一項對錯分析 -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 底部操作按鈕 -->
+      <div class="p-4 bg-slate-50 border-t border-slate-200 grid grid-cols-2 gap-3 safe-bottom">
+        <button type="button"
+                onclick="retrySameQuestion()"
+                class="h-12 rounded-xl font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 active:scale-95 transition text-sm">
+          🔄 重做本題修正錯誤
+        </button>
+        <button type="button"
+                onclick="nextRandomQuestion()"
+                class="h-12 rounded-xl font-black text-white bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-700 hover:to-fuchsia-700 shadow-md active:scale-95 transition text-sm">
+          🎲 挑戰下一位客人 →
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== JavaScript 核心題庫與批改邏輯 ==================== -->
+  <script>
+    /**
+     * 1. 飲料店與中餐店完整菜單與客製化資料庫
+     */
+    const storesData = {
+      drinks: {
+        title: '🥤 實習飲料店考場',
+        unitWord: '杯',
+        menus: [
+          { id: 'drink-1', name: '經典珍珠奶茶', price: 55, image: 'https://images.unsplash.com/photo-1558857563-b371033873b8?auto=format&fit=crop&w=600&q=80' },
+          { id: 'drink-2', name: '高山四季春青茶', price: 35, image: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=600&q=80' },
+          { id: 'drink-3', name: '熟成紅茶拿鐵', price: 60, image: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=600&q=80' },
+          { id: 'drink-4', name: '鮮榨百香雙響炮', price: 65, image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=600&q=80' },
+          { id: 'drink-5', name: '古早味冬瓜檸檬', price: 50, image: 'https://images.unsplash.com/photo-1523677011781-c91d1bbe2f9e?auto=format&fit=crop&w=600&q=80' },
+          { id: 'drink-6', name: '宇治抹茶鮮奶', price: 70, image: 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80' },
+          { id: 'drink-7', name: '滿杯紅柚翡翠', price: 75, image: 'https://images.unsplash.com/photo-1546173159-315724a31696?auto=format&fit=crop&w=600&q=80' },
+          { id: 'drink-8', name: '黑糖波霸鮮奶', price: 65, image: 'https://images.unsplash.com/photo-1541658016709-82535e94bc69?auto=format&fit=crop&w=600&q=80' }
+        ],
+        sugarOptions: ['正常甜', '半糖', '微糖', '無糖'],
+        iceOptions: ['正常冰', '少冰', '微冰', '去冰', '完全去冰', '溫', '熱'],
+        toppingOptions: [
+          { id: 'top-pearl', name: '珍珠', price: 10 },
+          { id: 'top-coconut', name: '椰果', price: 10 },
+          { id: 'top-pudding', name: '布丁', price: 15 },
+          { id: 'top-grassjelly', name: '仙草凍', price: 10 },
+          { id: 'top-foam', name: '濃醇奶蓋', price: 20 }
+        ],
+        customers: [
+          { avatar: '👵', name: '養生廣場舞陳阿姨', mood: '非常在意糖分與冰塊，點錯會碎碎念' },
+          { avatar: '👨‍💻', name: '熬夜趕專案工程師', mood: '急需咀嚼配料與糖分補充大腦能量' },
+          { avatar: '💃', name: '嚴格飲控健身教練', mood: '對熱量跟冰塊極度敏感，千萬別手滑' },
+          { avatar: '🧑‍🎓', name: '幫全寢室跑腿的大學生', mood: '室友每個人要求都不同，考驗你的眼力' },
+          { avatar: '🕵️‍♂️', name: '神秘美食部落客', mood: '拿著小本本準備記錄你有沒有點錯單' }
+        ]
+      },
+      food: {
+        title: '🍱 實習中餐店考場',
+        unitWord: '份',
+        menus: [
+          { id: 'food-1', name: '懷舊滷排骨便當', price: 110, image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80' },
+          { id: 'food-2', name: '脆皮炸雞腿便當', price: 120, image: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=600&q=80' },
+          { id: 'food-3', name: '紅燒半筋半肉牛肉麵', price: 150, image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80' },
+          { id: 'food-4', name: '古早味瓜仔魯肉飯', price: 45, image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=600&q=80' },
+          { id: 'food-5', name: '手工鮮肉煎餃 (8顆)', price: 65, image: 'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?auto=format&fit=crop&w=600&q=80' },
+          { id: 'food-6', name: '蒜香清炒季節時蔬', price: 50, image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=600&q=80' },
+          { id: 'food-7', name: '主廚黃金蝦仁炒飯', price: 100, image: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=600&q=80' },
+          { id: 'food-8', name: '招牌酸辣湯', price: 40, image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=600&q=80' }
+        ],
+        spiceOptions: ['不辣', '小辣', '中辣', '大辣'],
+        addonOptions: [
+          { id: 'add-rice', name: '加飯/加麵', price: 10 },
+          { id: 'add-egg', name: '加滷蛋', price: 15 },
+          { id: 'add-tofu', name: '加油豆腐', price: 15 },
+          { id: 'add-veggie', name: '加青菜', price: 20 }
+        ],
+        noteOptions: ['不加蔥', '不加香菜', '不加蒜', '飯少/醬少'],
+        customers: [
+          { avatar: '👷', name: '餓壞的工地主任', mood: '體力消耗大，無辣不歡還要加量吃飽' },
+          { avatar: '👩‍💼', name: '反香菜聯盟會長', mood: '看到香菜或蔥花會原地崩潰尖叫' },
+          { avatar: '👴', name: '巷口下棋王伯伯', mood: '口味清淡講究，點錯辣度會吹鬍子瞪眼' },
+          { avatar: '🦸‍♂️', name: '外送趕單爆肝俠', mood: '幫客人代點好幾份便當，備註千萬別漏' },
+          { avatar: '👩‍🏫', name: '餐飲科實習督導老師', mood: '正站在櫃檯前笑咪咪盯著你的手指看' }
+        ]
+      }
+    };
+
+    /**
+     * 2. 考場全域狀態
+     */
+    let examConfig = {
+      selectedStoreSetting: 'random', // 'drinks' | 'food' | 'random'
+      activeStore: 'drinks',          // 實際當前考場 'drinks' | 'food'
+      mode: 'normal',                 // 'normal' (置頂對照) | 'memory' (記憶挑戰)
+      isQuestionExpanded: true,
+      memoryTimerId: null,
+      memorySecondsLeft: 15,
+      peekPenaltyCount: 0             // 記憶模式偷看次數（每次扣 5 分）
+    };
+
+    // 當前隨機生成的考題目標清單（1~5 個品項需求）
+    let targetExamOrder = [];
+    let currentCustomer = null;
+
+    // 學生點選的購物車狀態
+    const cart = {};
+    let cartDetails = [];
+
+    // 客製化彈窗暫存狀態
+    let currentCustomState = {};
+
+    /**
+     * 3. 工具函式：隨機抽取陣列元素
+     */
+    function pickRandom(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function pickRandomSubset(arr, maxCount) {
+      const count = Math.floor(Math.random() * (maxCount + 1)); // 0 ~ maxCount
+      if (count === 0) return [];
+      const shuffled = [...arr].sort(() => 0.5 - Math.random());
+      return shuffled.slice(0, count);
+    }
+
+    /**
+     * 4. 考場設定彈窗控制
+     */
+    function openExamSetupModal() {
+      renderSetupModalSelection();
+      const modal = document.getElementById('exam-setup-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeExamSetupModal() {
+      const modal = document.getElementById('exam-setup-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function selectSetupStore(storeType) {
+      examConfig.selectedStoreSetting = storeType;
+      renderSetupModalSelection();
+    }
+
+    function selectSetupMode(modeType) {
+      examConfig.mode = modeType;
+      renderSetupModalSelection();
+    }
+
+    function renderSetupModalSelection() {
+      const stores = ['drinks', 'food', 'random'];
+      stores.forEach(s => {
+        const btn = document.getElementById(`setup-store-${s}`);
+        if (examConfig.selectedStoreSetting === s) {
+          btn.className = 'p-3 rounded-2xl border-2 border-indigo-600 bg-indigo-50/80 text-indigo-950 text-center transition flex flex-col items-center gap-1 shadow-sm';
+        } else {
+          btn.className = 'p-3 rounded-2xl border-2 border-slate-200 bg-white text-slate-600 hover:bg-slate-50 text-center transition flex flex-col items-center gap-1';
+        }
+      });
+
+      const modes = ['normal', 'memory'];
+      modes.forEach(m => {
+        const btn = document.getElementById(`setup-mode-${m}`);
+        if (examConfig.mode === m) {
+          btn.className = 'w-full p-3.5 rounded-2xl border-2 border-indigo-600 bg-indigo-50/80 text-indigo-950 text-left transition flex items-start gap-3 shadow-sm';
+        } else {
+          btn.className = 'w-full p-3.5 rounded-2xl border-2 border-slate-200 bg-white text-slate-600 hover:bg-slate-50 text-left transition flex items-start gap-3';
+        }
+      });
+    }
+
+    /**
+     * 5. 隨機產生 1~5 個品項需求與客人口語考題
+     */
+    function startNewExam() {
+      closeExamSetupModal();
+      closeResultModal();
+
+      // 決定本次考場是飲料店還是中餐店
+      if (examConfig.selectedStoreSetting === 'random') {
+        examConfig.activeStore = Math.random() < 0.5 ? 'drinks' : 'food';
+      } else {
+        examConfig.activeStore = examConfig.selectedStoreSetting;
+      }
+
+      const storeObj = storesData[examConfig.activeStore];
+      document.getElementById('exam-header-title').textContent = storeObj.title;
+
+      // 隨機挑選一位客人角色
+      currentCustomer = pickRandom(storeObj.customers);
+
+      // 隨機決定本題要考幾個不同品項需求（1 ~ 5 個）
+      const reqCount = Math.floor(Math.random() * 5) + 1;
+      targetExamOrder = [];
+
+      for (let i = 0; i < reqCount; i++) {
+        const menu = pickRandom(storeObj.menus);
+        const qty = Math.random() < 0.75 ? 1 : 2; // 75% 機率點 1 份，25% 機率點 2 份
+
+        if (examConfig.activeStore === 'drinks') {
+          const sugar = pickRandom(storeObj.sugarOptions);
+          const ice = pickRandom(storeObj.iceOptions);
+          const toppings = pickRandomSubset(storeObj.toppingOptions, 2).sort((a, b) => a.id.localeCompare(b.id));
+          const toppingIds = toppings.map(t => t.id);
+          const specKey = `${menu.id}__${sugar}__${ice}__${toppingIds.join(',')}`;
+
+          // 若抽到完全相同規格則合併數量
+          const exist = targetExamOrder.find(e => e.key === specKey);
+          if (exist) {
+            exist.qty += qty;
+          } else {
+            const extra = toppings.reduce((s, t) => s + t.price, 0);
+            targetExamOrder.push({
+              key: specKey,
+              itemId: menu.id,
+              name: menu.name,
+              unitPrice: menu.price + extra,
+              sugar,
+              ice,
+              toppings,
+              qty
+            });
+          }
+        } else {
+          const spice = pickRandom(storeObj.spiceOptions);
+          const addons = pickRandomSubset(storeObj.addonOptions, 2).sort((a, b) => a.id.localeCompare(b.id));
+          const notes = pickRandomSubset(storeObj.noteOptions, 2).sort();
+          const addonIds = addons.map(a => a.id);
+          const specKey = `${menu.id}__${spice}__${addonIds.join(',')}__${notes.join(',')}`;
+
+          const exist = targetExamOrder.find(e => e.key === specKey);
+          if (exist) {
+            exist.qty += qty;
+          } else {
+            const extra = addons.reduce((s, a) => s + a.price, 0);
+            targetExamOrder.push({
+              key: specKey,
+              itemId: menu.id,
+              name: menu.name,
+              unitPrice: menu.price + extra,
+              spice,
+              addons,
+              notes,
+              qty
+            });
+          }
+        }
+      }
+
+      // 重置學生購物車與記憶挑戰狀態
+      examConfig.peekPenaltyCount = 0;
+      initCart();
+      renderQuestionBanner();
+      renderMenuGrid();
+      updateUI();
+      setupMemoryModeTimerIfNeeded();
+    }
+
+    // 渲染置頂客人考題橫幅與自然口語對話
+    function renderQuestionBanner() {
+      const storeObj = storesData[examConfig.activeStore];
+      document.getElementById('customer-avatar').textContent = currentCustomer.avatar;
+      document.getElementById('customer-name').textContent = currentCustomer.name;
+      document.getElementById('customer-mood').textContent = currentCustomer.mood;
+      document.getElementById('target-item-count').textContent = targetExamOrder.length;
+
+      const modeBadge = document.getElementById('exam-mode-badge');
+      if (examConfig.mode === 'memory') {
+        modeBadge.textContent = '🧠 記憶挑戰模式';
+        modeBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-600 text-white whitespace-nowrap';
+      } else {
+        modeBadge.textContent = '📋 置頂對照模式';
+        modeBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-600 text-white whitespace-nowrap';
+      }
+
+      // 組合客人口語點餐台詞
+      const spokenParts = targetExamOrder.map((req, idx) => {
+        if (examConfig.activeStore === 'drinks') {
+          const topStr = req.toppings.length > 0 ? `，還要加【${req.toppings.map(t => t.name).join('、')}】` : '';
+          return `(${idx + 1}) ${req.qty} 杯「${req.name}」要【${req.sugar}、${req.ice}】${topStr}`;
+        } else {
+          const addStr = req.addons.length > 0 ? `，要【${req.addons.map(a => a.name).join('、')}】` : '';
+          const noteStr = req.notes.length > 0 ? `，記得【${req.notes.join('、')}】` : '';
+          return `(${idx + 1}) ${req.qty} 份「${req.name}」要【${req.spice}】${addStr}${noteStr}`;
+        }
+      });
+
+      document.getElementById('customer-dialogue').textContent =
+        `「你好！我要點餐：${spokenParts.join('；另外還要 ')}。麻煩動作快一點喔，謝謝！」`;
+
+      // 渲染結構化需求清單
+      const listEl = document.getElementById('target-order-list');
+      listEl.innerHTML = targetExamOrder.map((req, idx) => {
+        let badgesHtml = '';
+        if (examConfig.activeStore === 'drinks') {
+          const topBadges = req.toppings.map(t => `<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[11px]">+${t.name}</span>`).join(' ');
+          badgesHtml = `
+            <span class="px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 font-bold text-[11px]">${req.sugar}</span>
+            <span class="px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-800 font-bold text-[11px]">${req.ice}</span>
+            ${topBadges}
+          `;
+        } else {
+          const addBadges = req.addons.map(a => `<span class="px-1.5 py-0.5 rounded bg-amber-100 text-orange-800 font-bold text-[11px]">+${a.name}</span>`).join(' ');
+          const noteBadges = req.notes.map(n => `<span class="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-bold text-[11px]">${n}</span>`).join(' ');
+          badgesHtml = `
+            <span class="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 font-bold text-[11px]">${req.spice}</span>
+            ${addBadges}
+            ${noteBadges}
+          `;
+        }
+
+        return `
+          <li class="bg-white border border-indigo-100 rounded-xl p-2.5 shadow-sm flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <div class="font-extrabold text-slate-800 text-xs sm:text-sm truncate">
+                ${idx + 1}. ${req.name}
+              </div>
+              <div class="flex flex-wrap gap-1 mt-1">
+                ${badgesHtml}
+              </div>
+            </div>
+            <span class="shrink-0 px-2.5 py-1 rounded-xl bg-indigo-600 text-white font-black text-xs sm:text-sm">
+              x ${req.qty} ${storeObj.unitWord}
+            </span>
+          </li>
+        `;
+      }).join('');
+    }
+
+    // 處理對照模式展開/收合 與 記憶挑戰模式 15 秒倒數
+    function setupMemoryModeTimerIfNeeded() {
+      if (examConfig.memoryTimerId) {
+        clearInterval(examConfig.memoryTimerId);
+        examConfig.memoryTimerId = null;
+      }
+
+      const contentArea = document.getElementById('question-content-area');
+      const hiddenOverlay = document.getElementById('memory-hidden-overlay');
+      const timerBadge = document.getElementById('memory-timer-badge');
+      const toggleBtn = document.getElementById('toggle-question-btn');
+
+      examConfig.isQuestionExpanded = true;
+      contentArea.classList.remove('hidden');
+      hiddenOverlay.classList.add('hidden');
+      hiddenOverlay.classList.remove('flex');
+      toggleBtn.textContent = '收合考題 ▲';
+
+      if (examConfig.mode === 'memory') {
+        examConfig.memorySecondsLeft = 15;
+        timerBadge.classList.remove('hidden');
+        timerBadge.textContent = `⏱️ 記憶倒數 ${examConfig.memorySecondsLeft}s`;
+        toggleBtn.textContent = '立即隱藏 ▲';
+
+        examConfig.memoryTimerId = setInterval(() => {
+          examConfig.memorySecondsLeft -= 1;
+          if (examConfig.memorySecondsLeft > 0) {
+            timerBadge.textContent = `⏱️ 記憶倒數 ${examConfig.memorySecondsLeft}s`;
+          } else {
+            clearInterval(examConfig.memoryTimerId);
+            examConfig.memoryTimerId = null;
+            hideQuestionForMemoryMode();
+          }
+        }, 1000);
+      } else {
+        timerBadge.classList.add('hidden');
+      }
+    }
+
+    function hideQuestionForMemoryMode() {
+      const contentArea = document.getElementById('question-content-area');
+      const hiddenOverlay = document.getElementById('memory-hidden-overlay');
+      const timerBadge = document.getElementById('memory-timer-badge');
+      const toggleBtn = document.getElementById('toggle-question-btn');
+
+      examConfig.isQuestionExpanded = false;
+      contentArea.classList.add('hidden');
+      hiddenOverlay.classList.remove('hidden');
+      hiddenOverlay.classList.add('flex');
+      timerBadge.classList.add('hidden');
+      toggleBtn.textContent = '👀 偷看 (-5分)';
+    }
+
+    function peekQuestionInMemoryMode() {
+      examConfig.peekPenaltyCount += 1;
+      const contentArea = document.getElementById('question-content-area');
+      const hiddenOverlay = document.getElementById('memory-hidden-overlay');
+      const timerBadge = document.getElementById('memory-timer-badge');
+      const toggleBtn = document.getElementById('toggle-question-btn');
+
+      examConfig.isQuestionExpanded = true;
+      contentArea.classList.remove('hidden');
+      hiddenOverlay.classList.add('hidden');
+      hiddenOverlay.classList.remove('flex');
+
+      timerBadge.classList.remove('hidden');
+      timerBadge.textContent = `👀 偷看中 (已扣 ${examConfig.peekPenaltyCount * 5} 分)`;
+      toggleBtn.textContent = '隱藏考題 ▲';
+    }
+
+    function toggleQuestionSheet() {
+      if (examConfig.mode === 'memory') {
+        if (examConfig.isQuestionExpanded) {
+          if (examConfig.memoryTimerId) {
+            clearInterval(examConfig.memoryTimerId);
+            examConfig.memoryTimerId = null;
+          }
+          hideQuestionForMemoryMode();
+        } else {
+          peekQuestionInMemoryMode();
+        }
+        return;
+      }
+
+      const contentArea = document.getElementById('question-content-area');
+      const toggleBtn = document.getElementById('toggle-question-btn');
+      examConfig.isQuestionExpanded = !examConfig.isQuestionExpanded;
+
+      if (examConfig.isQuestionExpanded) {
+        contentArea.classList.remove('hidden');
+        toggleBtn.textContent = '收合考題 ▲';
+      } else {
+        contentArea.classList.add('hidden');
+        toggleBtn.textContent = '展開考題 ▼';
+      }
+    }
+
+    /**
+     * 6. 渲染菜單卡片與購物車邏輯
+     */
+    function initCart() {
+      const storeObj = storesData[examConfig.activeStore];
+      storeObj.menus.forEach(item => {
+        cart[item.id] = 0;
+      });
+      cartDetails = [];
+    }
+
+    function syncCartCounts() {
+      const storeObj = storesData[examConfig.activeStore];
+      storeObj.menus.forEach(item => {
+        cart[item.id] = 0;
+      });
+      cartDetails.forEach(entry => {
+        cart[entry.itemId] = (cart[entry.itemId] || 0) + entry.qty;
+      });
+    }
+
+    function renderMenuGrid() {
+      const storeObj = storesData[examConfig.activeStore];
+      const gridEl = document.getElementById('menu-grid');
+      document.getElementById('menu-count-badge').textContent = `當前題庫：${storeObj.title}（共 ${storeObj.menus.length} 項）`;
+
+      gridEl.innerHTML = storeObj.menus.map(item => `
+        <article class="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-indigo-100/80 flex flex-col justify-between transition hover:shadow-md">
+          <div>
+            <div class="aspect-[4/3] w-full overflow-hidden rounded-xl shadow-sm bg-slate-100 mb-3 relative cursor-pointer"
+                 onclick="openCustomModal('${item.id}')">
+              <img src="${item.image}" 
+                   alt="${item.name}" 
+                   loading="lazy"
+                   class="w-full h-full object-cover transition-transform duration-500 hover:scale-105" />
+              <span class="absolute bottom-2 right-2 bg-slate-900/70 backdrop-blur-sm text-white text-[11px] font-bold px-2 py-0.5 rounded-md">
+                點擊客製
+              </span>
+            </div>
+
+            <h3 class="font-bold text-slate-800 text-sm sm:text-base line-clamp-1">${item.name}</h3>
+            <p class="text-indigo-600 font-black text-base sm:text-lg mt-0.5">NT$ ${item.price} <span class="text-xs font-normal text-slate-400">起</span></p>
+          </div>
+
+          <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
+            <button id="minus-${item.id}"
+                    type="button"
+                    onclick="decreaseItemFromCard('${item.id}')"
+                    disabled
+                    class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl font-black text-lg flex items-center justify-center bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-90 transition disabled:opacity-40 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed disabled:active:scale-100">
+              −
+            </button>
+
+            <span id="qty-${item.id}" 
+                  class="font-black text-base sm:text-lg text-slate-800 min-w-[2rem] text-center select-none">
+              0
+            </span>
+
+            <button id="plus-${item.id}"
+                    type="button"
+                    onclick="openCustomModal('${item.id}')"
+                    class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl font-black text-lg flex items-center justify-center bg-indigo-600 text-white hover:bg-indigo-700 active:scale-90 shadow-sm shadow-indigo-500/30 transition">
+              +
+            </button>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    /**
+     * 7. 客製化彈窗（動態適配飲料店或中餐店）
+     */
+    function openCustomModal(itemId) {
+      const storeObj = storesData[examConfig.activeStore];
+      const item = storeObj.menus.find(m => m.id === itemId);
+      if (!item) return;
+
+      if (examConfig.activeStore === 'drinks') {
+        currentCustomState = {
+          item,
+          sugar: storeObj.sugarOptions[0],
+          ice: storeObj.iceOptions[0],
+          toppings: [],
+          qty: 1
+        };
+      } else {
+        currentCustomState = {
+          item,
+          spice: storeObj.spiceOptions[0],
+          addons: [],
+          notes: [],
+          qty: 1
+        };
+      }
+
+      document.getElementById('custom-modal-title').textContent = `${item.name}（NT$ ${item.price}）`;
+      renderCustomModalBody();
+
+      const modalEl = document.getElementById('custom-modal');
+      modalEl.classList.remove('hidden');
+      modalEl.classList.add('flex');
+    }
+
+    function closeCustomModal() {
+      const modalEl = document.getElementById('custom-modal');
+      modalEl.classList.add('hidden');
+      modalEl.classList.remove('flex');
+    }
+
+    function renderCustomModalBody() {
+      const storeObj = storesData[examConfig.activeStore];
+      const bodyEl = document.getElementById('custom-modal-body');
+      const { item, qty } = currentCustomState;
+
+      if (examConfig.activeStore === 'drinks') {
+        const { sugar, ice, toppings } = currentCustomState;
+        const selectedToppingsObjs = storeObj.toppingOptions.filter(t => toppings.includes(t.id));
+        const extra = selectedToppingsObjs.reduce((s, t) => s + t.price, 0);
+        const unitPrice = item.price + extra;
+
+        bodyEl.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-sm font-extrabold text-slate-800">🍬 甜度選擇</label>
+              <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">必選單選</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              ${storeObj.sugarOptions.map(opt => `
+                <button type="button" onclick="setCustomField('sugar', '${opt}')"
+                        class="py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold border transition ${
+                          sugar === opt ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-700 border-slate-200'
+                        }">${opt}</button>
+              `).join('')}
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-sm font-extrabold text-slate-800">🧊 冰塊 / 溫度</label>
+              <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">必選單選</span>
+            </div>
+            <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              ${storeObj.iceOptions.map(opt => `
+                <button type="button" onclick="setCustomField('ice', '${opt}')"
+                        class="py-2.5 px-2.5 rounded-xl text-xs sm:text-sm font-bold border transition ${
+                          ice === opt ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-slate-700 border-slate-200'
+                        }">${opt}</button>
+              `).join('')}
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-sm font-extrabold text-slate-800">🧋 加料加價區</label>
+              <span class="text-xs text-slate-400">可複選</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              ${storeObj.toppingOptions.map(top => {
+                const active = toppings.includes(top.id);
+                return `
+                  <button type="button" onclick="toggleCustomArray('toppings', '${top.id}')"
+                          class="py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold border transition flex items-center justify-between ${
+                            active ? 'bg-indigo-50 text-indigo-900 border-indigo-500 ring-1 ring-indigo-500' : 'bg-white text-slate-700 border-slate-200'
+                          }">
+                    <span>${active ? '✓ ' : '+ '}${top.name}</span>
+                    <span class="text-indigo-600 font-extrabold">+NT$ ${top.price}</span>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+            <span class="text-sm font-extrabold text-slate-800">點購杯數</span>
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="changeCustomQty(-1)" ${qty <= 1 ? 'disabled' : ''}
+                      class="w-10 h-10 rounded-xl font-black text-lg bg-slate-100 text-slate-700 disabled:opacity-40">−</button>
+              <span class="font-black text-lg text-slate-900 min-w-[2rem] text-center">${qty}</span>
+              <button type="button" onclick="changeCustomQty(1)"
+                      class="w-10 h-10 rounded-xl font-black text-lg bg-indigo-600 text-white">+</button>
+            </div>
+          </div>
+        `;
+
+        const topText = selectedToppingsObjs.length > 0 ? ' / 加：' + selectedToppingsObjs.map(t => t.name).join('、') : '';
+        document.getElementById('custom-summary-preview').textContent = `${sugar} / ${ice}${topText}`;
+        document.getElementById('custom-unit-price').textContent = `NT$ ${unitPrice}`;
+        document.getElementById('custom-total-price').textContent = (unitPrice * qty).toLocaleString();
+
+      } else {
+        const { spice, addons, notes } = currentCustomState;
+        const selectedAddonsObjs = storeObj.addonOptions.filter(a => addons.includes(a.id));
+        const extra = selectedAddonsObjs.reduce((s, a) => s + a.price, 0);
+        const unitPrice = item.price + extra;
+
+        bodyEl.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-sm font-extrabold text-slate-800">🌶️ 辣度選擇</label>
+              <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">必選單選</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              ${storeObj.spiceOptions.map(opt => `
+                <button type="button" onclick="setCustomField('spice', '${opt}')"
+                        class="py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold border transition ${
+                          spice === opt ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-700 border-slate-200'
+                        }">${opt}</button>
+              `).join('')}
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-sm font-extrabold text-slate-800">🍳 加量 / 加點加價</label>
+              <span class="text-xs text-slate-400">可複選</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              ${storeObj.addonOptions.map(addon => {
+                const active = addons.includes(addon.id);
+                return `
+                  <button type="button" onclick="toggleCustomArray('addons', '${addon.id}')"
+                          class="py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold border transition flex items-center justify-between ${
+                            active ? 'bg-indigo-50 text-indigo-900 border-indigo-500 ring-1 ring-indigo-500' : 'bg-white text-slate-700 border-slate-200'
+                          }">
+                    <span>${active ? '✓ ' : '+ '}${addon.name}</span>
+                    <span class="text-indigo-600 font-extrabold">+NT$ ${addon.price}</span>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-sm font-extrabold text-slate-800">🌿 忌口與廚房備註</label>
+              <span class="text-xs text-slate-400">免費可複選</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              ${storeObj.noteOptions.map(note => {
+                const active = notes.includes(note);
+                return `
+                  <button type="button" onclick="toggleCustomArray('notes', '${note}')"
+                          class="py-2.5 px-2.5 rounded-xl text-xs sm:text-sm font-bold border transition ${
+                            active ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-white text-slate-700 border-slate-200'
+                          }">${active ? '✓ ' : ''}${note}</button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+            <span class="text-sm font-extrabold text-slate-800">點購份數</span>
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="changeCustomQty(-1)" ${qty <= 1 ? 'disabled' : ''}
+                      class="w-10 h-10 rounded-xl font-black text-lg bg-slate-100 text-slate-700 disabled:opacity-40">−</button>
+              <span class="font-black text-lg text-slate-900 min-w-[2rem] text-center">${qty}</span>
+              <button type="button" onclick="changeCustomQty(1)"
+                      class="w-10 h-10 rounded-xl font-black text-lg bg-indigo-600 text-white">+</button>
+            </div>
+          </div>
+        `;
+
+        const addText = selectedAddonsObjs.length > 0 ? ' / ' + selectedAddonsObjs.map(a => a.name).join('、') : '';
+        const noteText = notes.length > 0 ? ' / ' + notes.join('、') : '';
+        document.getElementById('custom-summary-preview').textContent = `${spice}${addText}${noteText}`;
+        document.getElementById('custom-unit-price').textContent = `NT$ ${unitPrice}`;
+        document.getElementById('custom-total-price').textContent = (unitPrice * qty).toLocaleString();
+      }
+    }
+
+    function setCustomField(field, val) {
+      currentCustomState[field] = val;
+      renderCustomModalBody();
+    }
+
+    function toggleCustomArray(field, val) {
+      const arr = currentCustomState[field];
+      const idx = arr.indexOf(val);
+      if (idx > -1) arr.splice(idx, 1);
+      else arr.push(val);
+      renderCustomModalBody();
+    }
+
+    function changeCustomQty(delta) {
+      currentCustomState.qty = Math.max(1, currentCustomState.qty + delta);
+      renderCustomModalBody();
+    }
+
+    function confirmAddCustomToCart() {
+      const storeObj = storesData[examConfig.activeStore];
+      const { item, qty } = currentCustomState;
+
+      if (examConfig.activeStore === 'drinks') {
+        const { sugar, ice, toppings } = currentCustomState;
+        const sortedTops = [...toppings].sort();
+        const selectedToppingsObjs = storeObj.toppingOptions.filter(t => sortedTops.includes(t.id));
+        const unitPrice = item.price + selectedToppingsObjs.reduce((s, t) => s + t.price, 0);
+        const specKey = `${item.id}__${sugar}__${ice}__${sortedTops.join(',')}`;
+
+        const exist = cartDetails.find(e => e.key === specKey);
+        if (exist) exist.qty += qty;
+        else {
+          cartDetails.push({
+            key: specKey,
+            itemId: item.id,
+            name: item.name,
+            unitPrice,
+            sugar,
+            ice,
+            toppings: selectedToppingsObjs,
+            qty
+          });
+        }
+      } else {
+        const { spice, addons, notes } = currentCustomState;
+        const sortedAddons = [...addons].sort();
+        const sortedNotes = [...notes].sort();
+        const selectedAddonsObjs = storeObj.addonOptions.filter(a => sortedAddons.includes(a.id));
+        const unitPrice = item.price + selectedAddonsObjs.reduce((s, a) => s + a.price, 0);
+        const specKey = `${item.id}__${spice}__${sortedAddons.join(',')}__${sortedNotes.join(',')}`;
+
+        const exist = cartDetails.find(e => e.key === specKey);
+        if (exist) exist.qty += qty;
+        else {
+          cartDetails.push({
+            key: specKey,
+            itemId: item.id,
+            name: item.name,
+            unitPrice,
+            spice,
+            addons: selectedAddonsObjs,
+            notes: sortedNotes,
+            qty
+          });
+        }
+      }
+
+      closeCustomModal();
+      updateUI();
+    }
+
+    function decreaseItemFromCard(itemId) {
+      for (let i = cartDetails.length - 1; i >= 0; i--) {
+        if (cartDetails[i].itemId === itemId) {
+          cartDetails[i].qty -= 1;
+          if (cartDetails[i].qty <= 0) cartDetails.splice(i, 1);
+          break;
+        }
+      }
+      updateUI();
+    }
+
+    function updateCartEntryByKey(specKey, delta) {
+      const idx = cartDetails.findIndex(e => e.key === specKey);
+      if (idx === -1) return;
+      cartDetails[idx].qty += delta;
+      if (cartDetails[idx].qty <= 0) cartDetails.splice(idx, 1);
+      updateUI();
+      if (cartDetails.length === 0) closeCheckoutModal();
+      else renderCheckoutOrderList();
+    }
+
+    function updateUI() {
+      syncCartCounts();
+      const storeObj = storesData[examConfig.activeStore];
+
+      let totalQty = 0;
+      let totalPrice = 0;
+      cartDetails.forEach(e => {
+        totalQty += e.qty;
+        totalPrice += e.qty * e.unitPrice;
+      });
+
+      storeObj.menus.forEach(item => {
+        const qty = cart[item.id] || 0;
+        const qtyEl = document.getElementById(`qty-${item.id}`);
+        if (qtyEl) {
+          qtyEl.textContent = qty;
+          qtyEl.className = qty > 0
+            ? 'font-black text-base sm:text-lg text-indigo-600 min-w-[2rem] text-center select-none'
+            : 'font-black text-base sm:text-lg text-slate-800 min-w-[2rem] text-center select-none';
+        }
+        const minusBtn = document.getElementById(`minus-${item.id}`);
+        if (minusBtn) minusBtn.disabled = (qty === 0);
+      });
+
+      document.getElementById('total-qty-badge').textContent = totalQty;
+      document.getElementById('total-qty-text').textContent = totalQty;
+      document.getElementById('total-price-text').textContent = totalPrice.toLocaleString();
+
+      const isEmpty = (totalQty === 0);
+      document.getElementById('checkout-btn').disabled = isEmpty;
+      document.getElementById('reset-btn').disabled = isEmpty;
+    }
+
+    function clearCart() {
+      initCart();
+      updateUI();
+    }
+
+    function clearCartWithConfirm() {
+      if (confirm('確定要清空目前已點選的作答內容嗎？')) {
+        clearCart();
+      }
+    }
+
+    /**
+     * 8. 交卷前明細檢視彈窗
+     */
+    function renderCheckoutOrderList() {
+      const orderListEl = document.getElementById('modal-order-list');
+      let totalQty = 0;
+      let totalPrice = 0;
+
+      orderListEl.innerHTML = cartDetails.map(entry => {
+        const subtotal = entry.qty * entry.unitPrice;
+        totalQty += entry.qty;
+        totalPrice += subtotal;
+
+        let specBadges = '';
+        if (examConfig.activeStore === 'drinks') {
+          const topB = entry.toppings.map(t => `<span class="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-bold">+${t.name}</span>`).join(' ');
+          specBadges = `
+            <span class="px-2 py-0.5 rounded bg-teal-50 text-teal-700 text-[11px] font-bold">${entry.sugar}</span>
+            <span class="px-2 py-0.5 rounded bg-cyan-50 text-cyan-700 text-[11px] font-bold">${entry.ice}</span>
+            ${topB}
+          `;
+        } else {
+          const addB = entry.addons.map(a => `<span class="px-2 py-0.5 rounded bg-amber-50 text-orange-700 border border-amber-200 text-[11px] font-bold">+${a.name}</span>`).join(' ');
+          const noteB = entry.notes.map(n => `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px] font-bold">${n}</span>`).join(' ');
+          specBadges = `
+            <span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 text-[11px] font-bold">${entry.spice}</span>
+            ${addB}
+            ${noteB}
+          `;
+        }
+
+        return `
+          <tr>
+            <td class="py-3 pr-2">
+              <div class="font-bold text-slate-800">${entry.name}</div>
+              <div class="flex flex-wrap gap-1 mt-1">${specBadges}</div>
+            </td>
+            <td class="py-3 text-right text-slate-500 whitespace-nowrap align-top">NT$ ${entry.unitPrice}</td>
+            <td class="py-3 text-center whitespace-nowrap align-top">
+              <div class="inline-flex items-center gap-1.5 bg-slate-100 rounded-lg px-1.5 py-0.5">
+                <button type="button" onclick="updateCartEntryByKey('${entry.key}', -1)" class="w-6 h-6 rounded bg-white text-slate-700 font-black text-xs shadow-sm">−</button>
+                <span class="font-bold text-xs text-indigo-700 min-w-[1.25rem] text-center">${entry.qty}</span>
+                <button type="button" onclick="updateCartEntryByKey('${entry.key}', 1)" class="w-6 h-6 rounded bg-indigo-600 text-white font-black text-xs shadow-sm">+</button>
+              </div>
+            </td>
+            <td class="py-3 text-right font-extrabold text-slate-900 whitespace-nowrap align-top">NT$ ${subtotal.toLocaleString()}</td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('modal-total-qty').textContent = totalQty;
+      document.getElementById('modal-total-price').textContent = totalPrice.toLocaleString();
+    }
+
+    function openCheckoutModal() {
+      renderCheckoutOrderList();
+      const modalEl = document.getElementById('checkout-modal');
+      modalEl.classList.remove('hidden');
+      modalEl.classList.add('flex');
+    }
+
+    function closeCheckoutModal() {
+      const modalEl = document.getElementById('checkout-modal');
+      modalEl.classList.add('hidden');
+      modalEl.classList.remove('flex');
+    }
+
+    /**
+     * 9. 核心自動批改與趣味毒舌/誇獎評語引擎
+     */
+    function gradeExamSubmission() {
+      closeCheckoutModal();
+      if (examConfig.memoryTimerId) {
+        clearInterval(examConfig.memoryTimerId);
+        examConfig.memoryTimerId = null;
+      }
+
+      const breakdownHtmlList = [];
+      const specificComplaints = []; // 收集具體錯誤供客人吐槽
+      let earnedPoints = 0;
+      const totalTargetCount = targetExamOrder.length;
+      const pointsPerTarget = 100 / totalTargetCount;
+
+      // 複製一份學生的作答明細以便配對標記
+      const studentPool = cartDetails.map(e => ({ ...e, matched: false }));
+
+      targetExamOrder.forEach((target, idx) => {
+        // 1. 先找有沒有完全一模一樣規格 (key 相同)
+        const exactMatch = studentPool.find(s => !s.matched && s.key === target.key);
+        if (exactMatch) {
+          exactMatch.matched = true;
+          if (exactMatch.qty === target.qty) {
+            earnedPoints += pointsPerTarget;
+            breakdownHtmlList.push(`
+              <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start justify-between gap-2">
+                <div>
+                  <span class="font-black text-emerald-700">✅ 第 ${idx + 1} 項完全正確：</span>
+                  <span class="font-bold text-slate-800">${target.name} x ${target.qty}</span>
+                  <div class="text-xs text-emerald-600 mt-0.5">${formatSpecText(target)}</div>
+                </div>
+                <span class="shrink-0 font-black text-emerald-700 text-xs">+${Math.round(pointsPerTarget)}分</span>
+              </div>
+            `);
+          } else {
+            // 規格全對，但數量點錯（給一半分數）
+            earnedPoints += pointsPerTarget * 0.5;
+            const msg = `我要【${target.qty} 份 ${target.name}】，你給我點成【${exactMatch.qty} 份】，算數是體育老師教的嗎？！`;
+            specificComplaints.push(msg);
+            breakdownHtmlList.push(`
+              <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start justify-between gap-2">
+                <div>
+                  <span class="font-black text-amber-700">⚠️ 第 ${idx + 1} 項數量錯誤：</span>
+                  <span class="font-bold text-slate-800">${target.name}（規格正確，但數量應為 ${target.qty}，你點了 ${exactMatch.qty}）</span>
+                </div>
+                <span class="shrink-0 font-black text-amber-700 text-xs">+${Math.round(pointsPerTarget * 0.5)}分</span>
+              </div>
+            `);
+          }
+          return;
+        }
+
+        // 2. 若沒有完全相同 key，找看看有沒有點對「相同品項 itemId」但客製化規格弄錯的
+        const sameItemWrongSpec = studentPool.find(s => !s.matched && s.itemId === target.itemId);
+        if (sameItemWrongSpec) {
+          sameItemWrongSpec.matched = true;
+          earnedPoints += pointsPerTarget * 0.25; // 品項對給 25% 同情分
+
+          const diffReasons = analyzeSpecDifference(target, sameItemWrongSpec);
+          specificComplaints.push(...diffReasons.complaints);
+
+          breakdownHtmlList.push(`
+            <div class="p-3 rounded-xl bg-rose-50 border border-rose-200">
+              <div class="flex items-start justify-between gap-2">
+                <span class="font-black text-rose-700">❌ 第 ${idx + 1} 項客製化弄錯：${target.name}</span>
+                <span class="shrink-0 font-black text-rose-600 text-xs">+${Math.round(pointsPerTarget * 0.25)}分</span>
+              </div>
+              <div class="text-xs text-slate-600 mt-1">👉 客人要求：<strong class="text-slate-900">${formatSpecText(target)} (x${target.qty})</strong></div>
+              <div class="text-xs text-rose-600 mt-0.5">👉 你卻點成：<strong>${formatSpecText(sameItemWrongSpec)} (x${sameItemWrongSpec.qty})</strong>（${diffReasons.summary}）</div>
+            </div>
+          `);
+          return;
+        }
+
+        // 3. 完全漏點該品項
+        specificComplaints.push(`我的【${target.name}】呢？！我講那麼大聲你居然整份漏點，是要讓我餓肚子嗎！`);
+        breakdownHtmlList.push(`
+          <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-start justify-between gap-2">
+            <div>
+              <span class="font-black text-rose-700">❌ 第 ${idx + 1} 項完全漏點：</span>
+              <span class="font-bold text-slate-800">${target.name} x ${target.qty}（${formatSpecText(target)}）</span>
+            </div>
+            <span class="shrink-0 font-black text-rose-600 text-xs">+0分</span>
+          </div>
+        `);
+      });
+
+      // 4. 檢查學生是否多點了客人根本沒要的不明餐點
+      const extraUnmatched = studentPool.filter(s => !s.matched);
+      extraUnmatched.forEach(extra => {
+        earnedPoints -= 10;
+        specificComplaints.push(`喂！我根本沒點【${extra.name}】，你偷偷塞進帳單想幫老闆衝業績喔？！`);
+        breakdownHtmlList.push(`
+          <div class="p-3 rounded-xl bg-rose-100/80 border border-rose-300 flex items-start justify-between gap-2">
+            <div>
+              <span class="font-black text-rose-800">💥 亂加點扣分：</span>
+              <span class="font-bold text-slate-800">客人沒點「${extra.name} (${formatSpecText(extra)}) x ${extra.qty}」</span>
+            </div>
+            <span class="shrink-0 font-black text-rose-800 text-xs">-10分</span>
+          </div>
+        `);
+      });
+
+      // 5. 記憶模式偷看扣分
+      if (examConfig.peekPenaltyCount > 0) {
+        const peekDeduct = examConfig.peekPenaltyCount * 5;
+        earnedPoints -= peekDeduct;
+        breakdownHtmlList.push(`
+          <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between">
+            <span class="font-bold text-amber-800">👀 記憶挑戰模式偷看考題 ${examConfig.peekPenaltyCount} 次</span>
+            <span class="font-black text-amber-800 text-xs">-${peekDeduct}分</span>
+          </div>
+        `);
+      }
+
+      const finalScore = Math.max(0, Math.min(100, Math.round(earnedPoints)));
+      showResultModal(finalScore, specificComplaints, breakdownHtmlList);
+    }
+
+    // 格式化單筆規格文字
+    function formatSpecText(entry) {
+      if (examConfig.activeStore === 'drinks') {
+        const topStr = entry.toppings.length > 0 ? '、加' + entry.toppings.map(t => t.name).join('/') : '、不加料';
+        return `${entry.sugar}、${entry.ice}${topStr}`;
+      } else {
+        const addStr = entry.addons.length > 0 ? '、' + entry.addons.map(a => a.name).join('/') : '';
+        const noteStr = entry.notes.length > 0 ? '、' + entry.notes.join('/') : '';
+        return `${entry.spice}${addStr}${noteStr}`;
+      }
+    }
+
+    // 比對同品項但客製化不同的具體差異，產生超有梗的毒舌吐槽
+    function analyzeSpecDifference(target, actual) {
+      const complaints = [];
+      const diffParts = [];
+
+      if (examConfig.activeStore === 'drinks') {
+        if (target.sugar !== actual.sugar) {
+          diffParts.push(`甜度錯`);
+          complaints.push(`差評！我的「${target.name}」要【${target.sugar}】，你/妳給我弄成【${actual.sugar}】！是想害我血糖飆高還是沒味道啊？！`);
+        }
+        if (target.ice !== actual.ice) {
+          diffParts.push(`冰塊錯`);
+          complaints.push(`喂～！「${target.name}」我交代要【${target.ice}】，結果你做成【${actual.ice}】，我的牙齒跟喉嚨都在抗議了啦！`);
+        }
+        const targetTopNames = target.toppings.map(t => t.name).sort().join('、') || '不加料';
+        const actualTopNames = actual.toppings.map(t => t.name).sort().join('、') || '不加料';
+        if (targetTopNames !== actualTopNames) {
+          diffParts.push(`配料錯`);
+          complaints.push(`蛤～我的「${target.name}」配料要【${targetTopNames}】，你弄成【${actualTopNames}】，吸管戳下去我的靈魂都碎了！`);
+        }
+      } else {
+        if (target.spice !== actual.spice) {
+          diffParts.push(`辣度錯`);
+          complaints.push(`救命啊🔥！我的「${target.name}」要【${target.spice}】，你/妳給我弄成【${actual.spice}】，舌頭都麻掉了啦！`);
+        }
+        const targetAddNames = target.addons.map(a => a.name).sort().join('、') || '無加點';
+        const actualAddNames = actual.addons.map(a => a.name).sort().join('、') || '無加點';
+        if (targetAddNames !== actualAddNames) {
+          diffParts.push(`加點錯`);
+          complaints.push(`老闆！「${target.name}」我說加點要【${targetAddNames}】，結果來的是【${actualAddNames}】，這樣我怎麼吃得飽！`);
+        }
+        const targetNotes = target.notes.sort().join('、') || '無忌口';
+        const actualNotes = actual.notes.sort().join('、') || '無忌口';
+        if (targetNotes !== actualNotes) {
+          diffParts.push(`忌口備註錯`);
+          complaints.push(`退貨退貨😡！「${target.name}」我千交代萬交代【${targetNotes}】，結果你備註打【${actualNotes}】，挑菜挑到手痠！`);
+        }
+      }
+
+      if (target.qty !== actual.qty) {
+        diffParts.push(`數量錯`);
+        complaints.push(`還有「${target.name}」我要【${target.qty} 份】你點成【${actual.qty} 份】！`);
+      }
+
+      return {
+        summary: diffParts.join('、'),
+        complaints
+      };
+    }
+
+    // 顯示批改結果與隨機趣味評語
+    function showResultModal(score, complaints, breakdownHtmlList) {
+      const bannerEl = document.getElementById('result-header-banner');
+      const emojiEl = document.getElementById('result-badge-emoji');
+      const scoreEl = document.getElementById('result-score-num');
+      const rankEl = document.getElementById('result-rank-title');
+      const commentEl = document.getElementById('result-main-comment');
+
+      document.getElementById('result-customer-avatar').textContent = currentCustomer.avatar;
+      document.getElementById('result-customer-name').textContent = `${currentCustomer.name} 的結帳評語：`;
+      scoreEl.textContent = score;
+
+      // 滿分誇獎語錄庫
+      const perfectPraises = [
+        '「完美！手腳俐落又零失誤，你/妳明天可以直接站櫃檯準備上班了！」',
+        '「太神啦！連最難搞的客製化細節都一字不漏，店長決定原地幫你加薪 50 元！」',
+        '「五星好評⭐⭐⭐⭐⭐！點餐又快又準，客人感動到痛哭流涕，指定以後只找你點餐！」',
+        '「根本是餐飲界的天選之人！記憶力跟眼力都是頂尖水準，實習直接拿滿分！」'
+      ];
+
+      if (score === 100 && complaints.length === 0) {
+        bannerEl.className = 'px-6 py-6 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-center relative';
+        emojiEl.textContent = '🏆';
+        rankEl.textContent = '🌟 王牌店長級實習生（完美通關！）';
+        commentEl.textContent = pickRandom(perfectPraises);
+      } else if (score >= 80) {
+        bannerEl.className = 'px-6 py-6 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-center relative';
+        emojiEl.textContent = '🥈';
+        rankEl.textContent = '👍 熟練櫃檯收銀員（差一點就滿分！）';
+        commentEl.textContent = complaints.length > 0
+          ? `「${complaints[0]} 不過其他品項都有點對，下次眼睛再放亮一點啊！」`
+          : '「整體都點對了，但偷看考題被我抓到了喔！下次試著不偷看挑戰滿分！」';
+      } else if (score >= 50) {
+        bannerEl.className = 'px-6 py-6 bg-gradient-to-r from-orange-600 to-rose-600 text-white text-center relative';
+        emojiEl.textContent = '💦';
+        rankEl.textContent = '⚠️ 手忙腳亂實習生（還需多加練習！）';
+        commentEl.textContent = `「${complaints.slice(0, 2).join(' ')} 你這樣上班第一天會被店長罰寫菜單喔！」`;
+      } else {
+        bannerEl.className = 'px-6 py-6 bg-gradient-to-r from-rose-700 to-slate-900 text-white text-center relative';
+        emojiEl.textContent = '💥';
+        rankEl.textContent = '🚨 災難現場製造機（客人要翻桌啦！）';
+        commentEl.textContent = `「${complaints.slice(0, 2).join(' ')} 叫你們店長出來面對！我要寫客訴信！」`;
+      }
+
+      document.getElementById('result-breakdown-list').innerHTML = breakdownHtmlList.join('');
+
+      const modal = document.getElementById('result-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeResultModal() {
+      const modal = document.getElementById('result-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    // 重做本題（保留同一位客人與題目，清空購物車重選）
+    function retrySameQuestion() {
+      closeResultModal();
+      examConfig.peekPenaltyCount = 0;
+      initCart();
+      updateUI();
+      setupMemoryModeTimerIfNeeded();
+    }
+
+    // 隨機挑戰下一位客人
+    function nextRandomQuestion() {
+      startNewExam();
+    }
+
+    // 網頁載入時直接啟動一題隨機測驗，讓學生一進來就能玩，也可隨時點右上角「換題/設定」
+    document.addEventListener('DOMContentLoaded', () => {
+      startNewExam();
+    });
+  </script>
+</body>
+</html>
